@@ -4,6 +4,13 @@ from app.models.scene import Scene
 
 class SceneService:
     def create_scene(self, project_id, data):
+        if not data or not data.get("title") or not data.get("description") or not project_id:
+            return {
+                "status": "error",
+                "data": None,
+                "error": "Invalid scene payload"
+            }
+
         scene = Scene(
             title=data.get("title"),
             description=data.get("description"),
@@ -12,8 +19,16 @@ class SceneService:
             project_id=project_id
         )
 
-        db.session.add(scene)
-        db.session.commit()
+        try:
+            db.session.add(scene)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return {
+                "status": "error",
+                "data": None,
+                "error": "Database error creating scene"
+            }
 
         return {
             "status": "success",

@@ -1,5 +1,7 @@
-from flask import request, jsonify
+from flask import request
 from app.routes.api import api
+from app.utils.exceptions import BadRequestError
+from app.utils.response import success_response
 
 from app.ai.story_engine import StoryEngine
 from app.ai.character_engine import CharacterEngine
@@ -23,14 +25,15 @@ scene_service = SceneService()
 
 @api.route("/project/generate-full", methods=["POST"])
 def generate_full_project():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        raise BadRequestError("Invalid JSON body")
 
     idea = data.get("idea")
     genre = data.get("genre", "drama")
     duration = data.get("duration", 10)
     project_id = data.get("project_id")
 
-    # 1. Generate story
     story_result = story_engine.generate_story(
         idea=idea,
         genre=genre,
@@ -38,28 +41,29 @@ def generate_full_project():
     )
 
     if story_result["status"] != "success":
-        return jsonify(story_result), 400
+        raise BadRequestError(story_result["error"])
 
-    # 2. Create project (or attach to existing)
     if not project_id:
         project_result = project_service.create_project(
             idea=idea,
             genre=genre,
             story_result=story_result
         )
+        if project_result["status"] != "success":
+            raise BadRequestError(project_result["error"])
         project_id = project_result["data"]["project_id"]
     else:
         project_result = project_service.get_project(project_id)
+        if project_result["status"] != "success":
+            raise BadRequestError(project_result["error"])
 
-    # 3. Generate characters from story
     character_result = character_engine.generate_characters(
         story=story_result["data"]
     )
 
     if character_result["status"] != "success":
-        return jsonify(character_result), 400
+        raise BadRequestError(character_result["error"])
 
-    # Save all characters
     saved_characters = []
 
     for char in character_result["data"]["characters"]:
@@ -67,20 +71,24 @@ def generate_full_project():
             project_id=project_id,
             data=char
         )
+        if saved["status"] != "success":
+            raise BadRequestError(saved["error"])
         saved_characters.append(saved["data"])
 
-    # 4. Generate scenes (from script engine)
     script_result = script_engine.generate_script(story_result["data"])
+    if script_result["status"] != "success":
+        raise BadRequestError(script_result["error"])
 
-    scenes = script_result["data"]["scenes"]
+    scenes = script_result["data"].get("scenes", [])
 
     for scene in scenes:
-        scene_service.create_scene(
+        scene_result = scene_service.create_scene(
             project_id=project_id,
             data=scene
         )
+        if scene_result["status"] != "success":
+            raise BadRequestError(scene_result["error"])
 
-    # 5. Generate dialogue per scene
     dialogues = []
 
     for scene in scenes:
@@ -88,19 +96,15 @@ def generate_full_project():
             scene=scene,
             characters=saved_characters
         )
+        if dialogue_result["status"] != "success":
+            raise BadRequestError(dialogue_result["error"])
+        dialogues.append(dialogue_result["data"])
 
-    dialogues.append(dialogue_result["data"])
-
-    # 5. Return full system output
-    return jsonify({
-        "status": "success",
-        "data": {
-            "project": project_result["data"],
-            "story": story_result["data"],
-            "characters": character_result["data"],
-            "scenes": scenes,
-            "characters": saved_characters,
-            "dialogues": dialogues
-        },
-        "error": None
+    return success_response({
+        "project": project_result["data"],
+        "story": story_result["data"],
+        "characters": character_result["data"],
+        "scenes": scenes,
+        "saved_characters": saved_characters,
+        "dialogues": dialogues
     })

@@ -2,6 +2,9 @@ from flask import Flask
 
 from config import Config
 from app.extensions import db, migrate
+from app.utils.exceptions import ApiError
+from app.utils.response import error_response
+from werkzeug.exceptions import HTTPException
 
 
 def create_app():
@@ -32,5 +35,30 @@ def create_app():
     from app.routes.api import generator_routes
 
     app.register_blueprint(api)
+
+    @app.errorhandler(ApiError)
+    def handle_api_error(error):
+        return error_response(
+            error.message,
+            error.status_code,
+            error.data
+        )
+
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error):
+        return error_response(
+            error.description,
+            error.code
+        )
+
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        app.logger.exception(error)
+        return error_response(
+            "Internal server error",
+            500
+        )
 
     return app
