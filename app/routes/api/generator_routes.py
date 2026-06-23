@@ -8,6 +8,7 @@ from app.ai.character_engine import CharacterEngine
 from app.ai.script_engine import ScriptEngine
 from app.ai.dialogue_engine import DialogueEngine
 from app.ai.emotion_scene_engine import EmotionSceneEngine
+from app.memory.story_memory import StoryMemory
 
 from app.services.project_service import ProjectService
 from app.services.character_service import CharacterService
@@ -20,10 +21,10 @@ script_engine = ScriptEngine()
 dialogue_engine = DialogueEngine()
 emotion_scene_engine = EmotionSceneEngine()
 
-
 project_service = ProjectService()
 character_service = CharacterService()
 scene_service = SceneService()
+story_memory = StoryMemory()
 
 
 @api.route("/project/generate-full", methods=["POST"])
@@ -37,6 +38,7 @@ def generate_full_project():
     duration = data.get("duration", 10)
     project_id = data.get("project_id")
 
+    # 1. STORY
     story_result = story_engine.generate_story(
         idea=idea,
         genre=genre,
@@ -46,6 +48,9 @@ def generate_full_project():
     if story_result["status"] != "success":
         raise BadRequestError(story_result["error"])
 
+    story_data = story_result["data"]
+
+    # 2. PROJECT
     if not project_id:
         project_result = project_service.create_project(
             idea=idea,
@@ -60,16 +65,23 @@ def generate_full_project():
         if project_result["status"] != "success":
             raise BadRequestError(project_result["error"])
 
+    # NOW SAFE TO INIT MEMORY
+    story_memory.init_story(project_id, story_data)
+
+    # 3. CHARACTERS
     character_result = character_engine.generate_characters(
-        story=story_result["data"]
+        story=story_data
     )
 
     if character_result["status"] != "success":
         raise BadRequestError(character_result["error"])
 
+    characters = character_result["data"]["characters"]
+    relationships = character_result["data"]["relationships"]
+
     saved_characters = []
 
-    for char in character_result["data"]["characters"]:
+    for char in characters:
         saved = character_service.create_character(
             project_id=project_id,
             data=char
@@ -78,42 +90,53 @@ def generate_full_project():
             raise BadRequestError(saved["error"])
         saved_characters.append(saved["data"])
 
-        character_payload = character_result["data"]["characters"]
-        relationships = character_result["data"]["relationships"]
+    # 4. SCENES (EMOTION ENGINE)
+    scene_result = emotion_scene_engine.generate_scenes(
+        story=story_data,
+        characters=characters,
+        relationships=relationships
+    )
 
-        scene_result = emotion_scene_engine.generate_scenes(
-            story=story_result["data"],
-            characters=character_payload,
-            relationships=relationships
-        )
+    if scene_result["status"] != "success":
+        raise BadRequestError(scene_result["error"])
 
-        if scene_result["status"] != "success":
-            raise BadRequestError(scene_result["error"])
-
-        scenes = scene_result["data"]
+    scenes = scene_result["data"]
 
     for scene in scenes:
-        scene_result = scene_service.create_scene(
+        scene_result_db = scene_service.create_scene(
             project_id=project_id,
             data=scene
         )
-        if scene_result["status"] != "success":
-            raise BadRequestError(scene_result["error"])
+        if scene_result_db["status"] != "success":
+            raise BadRequestError(scene_result_db["error"])
 
+        story_memory.update_scene(project_id, scene)
+
+    # 5. DIALOGUES
     dialogues = []
 
     for scene in scenes:
         dialogue_result = dialogue_engine.generate_dialogue(
             scene=scene,
-            characters=saved_characters
+            characters=character_result["data"]["characters"]
         )
         if dialogue_result["status"] != "success":
             raise BadRequestError(dialogue_result["error"])
+
         dialogues.append(dialogue_result["data"])
+
+    # 6. EMOTION MEMORY UPDATE
+    for char in characters:
+        if "emotion" in char:
+            story_memory.update_emotion(
+                project_id,
+                char["name"],
+                char["emotion"]["current_emotion"]
+            )
 
     return success_response({
         "project": project_result["data"],
-        "story": story_result["data"],
+        "story": story_data,
         "characters": character_result["data"],
         "scenes": scenes,
         "saved_characters": saved_characters,
