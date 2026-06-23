@@ -1,7 +1,13 @@
+from app.ai.emotion_engine import EmotionEngine
+
+
 class CharacterEngine:
     """
-    Generates structured characters and their relationships from story context.
+    Generates structured characters, relationships, and emotional states.
     """
+
+    def __init__(self):
+        self.emotion_engine = EmotionEngine()
 
     def generate_characters(self, story: dict):
         if not story:
@@ -43,7 +49,7 @@ class CharacterEngine:
         }
 
     def _create_character(self, name, role, context):
-        return {
+        base_character = {
             "name": name,
             "role": role,
             "alignment": role,
@@ -52,6 +58,12 @@ class CharacterEngine:
             "motivation": self._generate_motivation(context, role),
             "conflict": self._generate_conflict(role)
         }
+
+        emotion = self.emotion_engine.generate_emotion(base_character)
+
+        base_character["emotion"] = emotion
+
+        return base_character
 
     def _generate_personality(self, role):
         personalities = {
