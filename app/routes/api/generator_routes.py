@@ -7,6 +7,7 @@ from app.ai.story_engine import StoryEngine
 from app.ai.character_engine import CharacterEngine
 from app.ai.script_engine import ScriptEngine
 from app.ai.dialogue_engine import DialogueEngine
+from app.ai.emotion_scene_engine import EmotionSceneEngine
 
 from app.services.project_service import ProjectService
 from app.services.character_service import CharacterService
@@ -17,6 +18,8 @@ story_engine = StoryEngine()
 character_engine = CharacterEngine()
 script_engine = ScriptEngine()
 dialogue_engine = DialogueEngine()
+emotion_scene_engine = EmotionSceneEngine()
+
 
 project_service = ProjectService()
 character_service = CharacterService()
@@ -75,11 +78,19 @@ def generate_full_project():
             raise BadRequestError(saved["error"])
         saved_characters.append(saved["data"])
 
-    script_result = script_engine.generate_script(story_result["data"])
-    if script_result["status"] != "success":
-        raise BadRequestError(script_result["error"])
+        character_payload = character_result["data"]["characters"]
+        relationships = character_result["data"]["relationships"]
 
-    scenes = script_result["data"].get("scenes", [])
+        scene_result = emotion_scene_engine.generate_scenes(
+            story=story_result["data"],
+            characters=character_payload,
+            relationships=relationships
+        )
+
+        if scene_result["status"] != "success":
+            raise BadRequestError(scene_result["error"])
+
+        scenes = scene_result["data"]
 
     for scene in scenes:
         scene_result = scene_service.create_scene(
