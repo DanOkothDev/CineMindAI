@@ -25,20 +25,25 @@ class ScriptEngine:
         }
 
     def _generate_scenes(self, story):
+        theme = story.get("logline", "")
+
         return [
             {
-                "scene": 1,
-                "description": "Opening setup of world and characters",
-                "purpose": "introduction"
+                "title": "Opening World",
+                "description": f"Introduction of world shaped by: {theme}",
+                "location": "Establishing environment",
+                "mood": "calm"
             },
             {
-                "scene": 2,
-                "description": "Conflict begins to emerge",
-                "purpose": "rising action"
+                "title": "Conflict Emerges",
+                "description": "Protagonist encounters opposition forces",
+                "location": "Tension setting",
+                "mood": "tense"
             },
             {
-                "scene": 3,
-                "description": "Climax and resolution",
-                "purpose": "ending"
+                "title": "Resolution",
+                "description": "Final confrontation and transformation",
+                "location": "Climax zone",
+                "mood": "emotional"
             }
         ]

@@ -49,17 +49,23 @@ def generate_full_project():
     else:
         project_result = project_service.get_project(project_id)
 
-    # 3. Generate characters (simple prototype version)
-    character_result = character_engine.create_character(
-        name="Main Character",
-        role="protagonist",
-        idea_context=idea
+    # 3. Generate characters from story
+    character_result = character_engine.generate_characters(
+        story=story_result["data"]
     )
 
-    character_service.create_character(
-        project_id=project_id,
-        data=character_result["data"]
-    )
+    if character_result["status"] != "success":
+        return jsonify(character_result), 400
+
+    # Save all characters
+    saved_characters = []
+
+    for char in character_result["data"]:
+        saved = character_service.create_character(
+            project_id=project_id,
+            data=char
+        )
+        saved_characters.append(saved["data"])
 
     # 4. Generate scenes (from script engine)
     script_result = script_engine.generate_script(story_result["data"])
@@ -79,7 +85,8 @@ def generate_full_project():
             "project": project_result["data"],
             "story": story_result["data"],
             "characters": character_result["data"],
-            "scenes": scenes
+            "scenes": scenes,
+            "characters": saved_characters
         },
         "error": None
     })
