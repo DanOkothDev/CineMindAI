@@ -12,9 +12,22 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    
     from app.models import project, character, scene
 
+   
     from app.routes.main import main
     app.register_blueprint(main)
+
+    
+    from app.routes.api import api
+
+    # Import routes so they attach to the api blueprint
+    from app.routes.api import story_routes
+    from app.routes.api import character_routes
+    from app.routes.api import script_routes
+    from app.routes.api import validation_routes
+
+    app.register_blueprint(api)
 
     return app
