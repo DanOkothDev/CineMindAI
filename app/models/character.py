@@ -8,11 +8,11 @@ class Character(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(100), nullable=True)
+    role = db.Column(db.String(100))
 
-    personality = db.Column(db.Text, nullable=True)
-    appearance = db.Column(db.Text, nullable=True)
-    motivation = db.Column(db.Text, nullable=True)
+    personality = db.Column(db.Text)
+    appearance = db.Column(db.Text)
+    motivation = db.Column(db.Text)
 
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
 

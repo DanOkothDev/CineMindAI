@@ -8,10 +8,12 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     title = db.Column(db.String(150), nullable=False)
-    genre = db.Column(db.String(50), nullable=True)
-
+    genre = db.Column(db.String(50))
     idea = db.Column(db.Text, nullable=False)
-    logline = db.Column(db.Text, nullable=True)
-    summary = db.Column(db.Text, nullable=True)
+    logline = db.Column(db.Text)
+    summary = db.Column(db.Text)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    characters = db.relationship("Character", backref="project", lazy=True)
+    scenes = db.relationship("Scene", backref="project", lazy=True)

@@ -28,6 +28,7 @@ def create_app():
     from app.routes.api import script_routes
     from app.routes.api import validation_routes
     from app.routes.api import project_routes
+    from app.routes.api import scene_routes
 
     app.register_blueprint(api)
 
