@@ -9,6 +9,8 @@ class Character(db.Model):
 
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(100))
+    relationship = db.Column(db.String(100))
+    alignment = db.Column(db.String(50))  # hero, neutral, villain
 
     personality = db.Column(db.Text)
     appearance = db.Column(db.Text)

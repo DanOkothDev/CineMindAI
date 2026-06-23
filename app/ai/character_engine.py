@@ -1,6 +1,6 @@
 class CharacterEngine:
     """
-    Generates multiple characters based on story context.
+    Generates structured characters and their relationships from story context.
     """
 
     def generate_characters(self, story: dict):
@@ -11,29 +11,34 @@ class CharacterEngine:
                 "error": "Story is required"
             }
 
-        idea = story.get("logline", "")
+        context = story.get("logline", "")
 
         characters = [
             self._create_character(
                 name="Protagonist",
                 role="hero",
-                context=idea
+                context=context
             ),
             self._create_character(
                 name="Mentor",
                 role="guide",
-                context=idea
+                context=context
             ),
             self._create_character(
                 name="Antagonist",
                 role="opposition",
-                context=idea
+                context=context
             )
         ]
 
+        relationships = self.build_relationships(characters)
+
         return {
             "status": "success",
-            "data": characters,
+            "data": {
+                "characters": characters,
+                "relationships": relationships
+            },
             "error": None
         }
 
@@ -41,6 +46,7 @@ class CharacterEngine:
         return {
             "name": name,
             "role": role,
+            "alignment": role,
             "personality": self._generate_personality(role),
             "appearance": self._generate_appearance(role),
             "motivation": self._generate_motivation(context, role),
@@ -59,7 +65,47 @@ class CharacterEngine:
         return f"Visual identity reflecting {role} archetype"
 
     def _generate_motivation(self, context, role):
-        return f"{role} is shaped by: {context[:80]}"
+        return f"{role} shaped by: {context[:80]}"
 
     def _generate_conflict(self, role):
-        return f"Internal and external conflict tied to {role} role"
+        conflicts = {
+            "hero": "Struggles with self-doubt and external obstacles",
+            "guide": "Hides deeper knowledge that could change the outcome",
+            "opposition": "Believes control is the only path to survival"
+        }
+        return conflicts.get(role, "Internal struggle tied to identity")
+
+    def build_relationships(self, characters):
+        """
+        Builds directed relationship graph between characters.
+        """
+
+        relationships = []
+
+        for char in characters:
+            for other in characters:
+                if char["name"] == other["name"]:
+                    continue
+
+                relationships.append({
+                    "from": char["name"],
+                    "to": other["name"],
+                    "relationship": self._infer_relationship(
+                        char["role"],
+                        other["role"]
+                    )
+                })
+
+        return relationships
+
+    def _infer_relationship(self, role1, role2):
+        rules = {
+            ("hero", "opposition"): "conflict",
+            ("opposition", "hero"): "conflict",
+            ("hero", "guide"): "trust",
+            ("guide", "hero"): "mentorship",
+            ("guide", "opposition"): "suspicion",
+            ("opposition", "guide"): "manipulation",
+        }
+
+        return rules.get((role1, role2), "neutral")

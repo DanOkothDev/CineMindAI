@@ -4,6 +4,7 @@ from app.routes.api import api
 from app.ai.story_engine import StoryEngine
 from app.ai.character_engine import CharacterEngine
 from app.ai.script_engine import ScriptEngine
+from app.ai.dialogue_engine import DialogueEngine
 
 from app.services.project_service import ProjectService
 from app.services.character_service import CharacterService
@@ -13,6 +14,7 @@ from app.services.scene_service import SceneService
 story_engine = StoryEngine()
 character_engine = CharacterEngine()
 script_engine = ScriptEngine()
+dialogue_engine = DialogueEngine()
 
 project_service = ProjectService()
 character_service = CharacterService()
@@ -60,7 +62,7 @@ def generate_full_project():
     # Save all characters
     saved_characters = []
 
-    for char in character_result["data"]:
+    for char in character_result["data"]["characters"]:
         saved = character_service.create_character(
             project_id=project_id,
             data=char
@@ -78,6 +80,17 @@ def generate_full_project():
             data=scene
         )
 
+    # 5. Generate dialogue per scene
+    dialogues = []
+
+    for scene in scenes:
+        dialogue_result = dialogue_engine.generate_dialogue(
+            scene=scene,
+            characters=saved_characters
+        )
+
+    dialogues.append(dialogue_result["data"])
+
     # 5. Return full system output
     return jsonify({
         "status": "success",
@@ -86,7 +99,8 @@ def generate_full_project():
             "story": story_result["data"],
             "characters": character_result["data"],
             "scenes": scenes,
-            "characters": saved_characters
+            "characters": saved_characters,
+            "dialogues": dialogues
         },
         "error": None
     })
