@@ -9,6 +9,7 @@ from app.ai.script_engine import ScriptEngine
 from app.ai.dialogue_engine import DialogueEngine
 from app.ai.emotion_scene_engine import EmotionSceneEngine
 from app.memory.story_memory import StoryMemory
+from app.ai.ai_client import AIClient
 
 from app.services.project_service import ProjectService
 from app.services.character_service import CharacterService
@@ -18,8 +19,12 @@ from app.services.scene_service import SceneService
 story_engine = StoryEngine()
 character_engine = CharacterEngine()
 script_engine = ScriptEngine()
-dialogue_engine = DialogueEngine()
 emotion_scene_engine = EmotionSceneEngine()
+ai_client = AIClient(enabled=True)
+dialogue_engine = DialogueEngine(
+    use_ai=True,
+    ai_client=ai_client
+)
 
 project_service = ProjectService()
 character_service = CharacterService()
