@@ -21,10 +21,7 @@ character_engine = CharacterEngine()
 script_engine = ScriptEngine()
 emotion_scene_engine = EmotionSceneEngine()
 ai_client = AIClient(enabled=True)
-dialogue_engine = DialogueEngine(
-    use_ai=True,
-    ai_client=ai_client
-)
+dialogue_engine = DialogueEngine()
 
 project_service = ProjectService()
 character_service = CharacterService()
