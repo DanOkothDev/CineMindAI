@@ -1,140 +1,253 @@
+import json
+
+from app.ai.gemini_client import GeminiClient
+
+
 class DialogueEngine:
     """
     Hybrid dialogue system:
-    - RULES: deterministic fallback (current system)
-    - AI: future LLM-based generation
-    - HYBRID: decides dynamically
+    - AI generates cinematic scene conversations
+    - Rule engine provides reliable fallback
     """
 
-    def __init__(self, use_ai=False, ai_client=None):
-        self.use_ai = use_ai
-        self.ai_client = ai_client  # placeholder for OpenAI / local model
+    def __init__(self):
+        self.ai = GeminiClient()
 
-    def generate_dialogue(self, scene, characters):
-        if not scene or not characters:
+
+    def generate_dialogues(self, story, characters, scenes):
+        if not story or not characters or not scenes:
             return {
                 "status": "error",
                 "data": None,
-                "error": "Scene and characters are required"
+                "error": "Story, characters and scenes are required"
             }
 
-        mood = scene.get("mood", "neutral")
-        title = scene.get("title", "Scene")
 
-        dialogue = []
+        ai_result = self._generate_with_ai(
+            story,
+            characters,
+            scenes
+        )
 
-        for char in characters:
-            role = char.get("role", "unknown")
-            name = char.get("name", "Unknown")
-            emotion_data = self._extract_emotion(char)
 
-            line = self._generate_line(
-                name=name,
-                role=role,
-                emotion_data=emotion_data,
-                mood=mood,
-                scene=scene,
-                character=char
+        if ai_result["status"] == "success":
+            print("Gemini Dialogue Engine Active")
+            return ai_result
+
+
+        print("Gemini Dialogue Engine failed:")
+        print(ai_result["error"])
+
+        print("Falling back to local Dialogue Engine")
+
+
+        dialogues = []
+
+        for scene in scenes:
+            result = self._local_generate(
+                scene,
+                characters
             )
 
-            dialogue.append({
-                "character": name,
-                "line": line
+            dialogues.append({
+                "scene": scene["title"],
+                "dialogue": result
             })
+
 
         return {
             "status": "success",
-            "data": dialogue,
+            "data": dialogues,
             "error": None
         }
 
-    
-    def _generate_line(self, name, role, emotion_data, mood, scene, character):
 
-        # HYBRID SWITCH
-        if self.use_ai and self.ai_client:
-            ai_line = self._ai_generate_line(name, role, emotion_data, mood, scene, character)
-            if ai_line:
-                return ai_line  # fallback only if AI succeeds
+    def _generate_with_ai(self, story, characters, scenes):
 
-        # fallback = rule-based
-        return self._rule_generate_line(role, emotion_data, mood)
+        prompt = f"""
+        You are a professional Hollywood screenplay writer.
 
-    
-    def _rule_generate_line(self, role, emotion, mood):
+        Story:
+        {story}
 
-        current = emotion.get("current", "")
-        base = emotion.get("base", "")
+        Characters:
+        {characters}
+
+        Scenes:
+        {scenes}
+
+        Create emotional and realistic dialogue.
+
+        Return ONLY valid JSON:
+
+        [
+            {{
+                "scene": "",
+                "dialogue": [
+                    {{
+                        "character": "",
+                        "line": ""
+                    }}
+                ]
+            }}
+        ]
+        """
+
+
+        response = self.ai.generate(prompt)
+
+
+        if response["status"] != "success":
+            return response
+
+
+        print("\n========== GEMINI DIALOGUE RESPONSE ==========")
+        print(response["data"])
+        print("==============================================\n")
+
+
+        try:
+            data = response["data"]
+
+            if "```json" in data:
+                data = data.replace("```json", "")
+
+            data = data.replace("```", "").strip()
+
+
+            dialogues = json.loads(data)
+
+
+            return {
+                "status": "success",
+                "data": dialogues,
+                "error": None
+            }
+
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "data": None,
+                "error": f"AI returned invalid JSON: {str(e)}"
+            }
+
+
+    def _local_generate(self, scene, characters):
+
+        dialogue = []
+
+
+        for char in characters:
+
+            emotion = self._extract_emotion(char)
+
+
+            line = self._generate_line(
+                role=char.get("role"),
+                emotion=emotion,
+                mood=scene.get("mood", "neutral")
+            )
+
+
+            dialogue.append({
+                "character": char.get("name"),
+                "line": line
+            })
+
+
+        return dialogue
+
+
+    def _generate_line(self, role, emotion, mood):
 
         if role == "hero":
-            return self._hero_line(current, mood)
+            return self._hero_line(
+                emotion["current"],
+                mood
+            )
+
 
         if role == "guide":
-            return self._mentor_line(current, mood)
+            return self._mentor_line(
+                emotion["current"],
+                mood
+            )
+
 
         if role == "opposition":
-            return self._antagonist_line(current, mood)
+            return self._antagonist_line(
+                emotion["current"],
+                mood
+            )
+
 
         return "..."
 
+
     def _hero_line(self, emotion, mood):
+
         if "fear" in emotion:
             return "I can't do this... but I can't stop now."
+
+
         if "doubt" in emotion:
-            return "What if I'm not meant for this?"
+            return "What if I was never meant for this?"
+
+
         if "determ" in emotion:
             return "No matter what happens, I will move forward."
+
+
         if mood == "chaotic":
-            return "Everything is breaking... but so am I."
+            return "Everything is breaking around me, but I must stand."
+
+
         return "I will keep going."
 
+
     def _mentor_line(self, emotion, mood):
+
         if mood == "chaotic":
             return "Hold your ground. Do not lose yourself."
+
+
         if "watch" in emotion or "concern" in emotion:
             return "You already know what you must do."
+
+
         return "Trust what you already understand."
 
+
     def _antagonist_line(self, emotion, mood):
+
         if "desper" in emotion:
-            return "This is not over... not even close."
+            return "This is not over. Not even close."
+
+
         if mood == "chaotic":
             return "Let everything collapse. I will remain."
-        return "You cannot change what is already set."
-
-    
-    def _ai_generate_line(self, name, role, emotion, mood, scene, character):
-        """
-        Future AI integration point.
-        Right now returns None (forces fallback safely).
-        """
-
-        prompt = f"""
-        Character: {name}
-        Role: {role}
-        Emotion: {emotion}
-        Mood: {mood}
-        Scene: {scene.get('title')}
-
-        Write a short emotional dialogue line.
-        """
-
-        try:
-            # Example placeholder:
-            # response = self.ai_client.generate(prompt)
-            # return response.text
-
-            return None  # safe fallback for now
-
-        except Exception:
-            return None
 
 
-    def _extract_emotion(self, char):
-        emotion_block = char.get("emotion", {})
+        return "You cannot change what has already been written."
+
+
+    def _extract_emotion(self, character):
+
+        emotion = character.get("emotion", {})
+
 
         return {
-            "base": emotion_block.get("base_emotion", "neutral"),
-            "current": emotion_block.get("current_emotion", "neutral"),
-            "arc": emotion_block.get("emotional_arc", [])
+            "base": emotion.get(
+                "base_emotion",
+                "neutral"
+            ),
+            "current": emotion.get(
+                "current_emotion",
+                "neutral"
+            ),
+            "arc": emotion.get(
+                "emotional_arc",
+                []
+            )
         }
