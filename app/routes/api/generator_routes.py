@@ -115,17 +115,16 @@ def generate_full_project():
         story_memory.update_scene(project_id, scene)
 
     # 5. DIALOGUES
-    dialogues = []
+    dialogue_result = dialogue_engine.generate_dialogues(
+        story=story_data,
+        characters=characters,
+        scenes=scenes
+    )
 
-    for scene in scenes:
-        dialogue_result = dialogue_engine.generate_dialogue(
-            scene=scene,
-            characters=character_result["data"]["characters"]
-        )
-        if dialogue_result["status"] != "success":
-            raise BadRequestError(dialogue_result["error"])
+    if dialogue_result["status"] != "success":
+        raise BadRequestError(dialogue_result["error"])
 
-        dialogues.append(dialogue_result["data"])
+    dialogues = dialogue_result["data"]
 
     # 6. EMOTION MEMORY UPDATE
     for char in characters:
@@ -135,6 +134,21 @@ def generate_full_project():
                 char["name"],
                 char["emotion"]["current_emotion"]
             )
+
+    result = {
+        "project": project_result["data"],
+        "story": story_data,
+        "characters": character_result["data"],
+        "scenes": scenes,
+        "saved_characters": saved_characters,
+        "dialogues": dialogues
+        }
+
+    print("\n========== RESPONSE ==========")
+    print(result)
+    print("==============================")
+
+    return success_response(result)
 
     return success_response({
         "project": project_result["data"],

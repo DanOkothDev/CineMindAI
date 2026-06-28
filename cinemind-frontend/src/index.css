@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-slate-line;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink text-paper font-body antialiased;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232, 163, 61, 0.07), transparent);
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-paper;
+  }
+  /* Visible keyboard focus everywhere, styled to match the brand instead of the browser default */
+  :focus-visible {
+    outline: 2px solid theme('colors.amber.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: rgba(232, 163, 61, 0.35);
+  }
+}
+
+@layer components {
+  /* Signature element: a clapperboard stripe, used sparingly on primary
+     actions and as a section accent. */
+  .clapper-stripe {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      theme('colors.ink.DEFAULT') 0px,
+      theme('colors.ink.DEFAULT') 10px,
+      theme('colors.paper.DEFAULT') 10px,
+      theme('colors.paper.DEFAULT') 20px
+    );
+  }
+
+  .slug-line {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-amber;
+  }
+
+  .panel {
+    @apply bg-ink-soft border border-slate rounded-xl shadow-card;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-amber px-4 py-2.5
+      font-body font-semibold text-ink transition-colors duration-150
+      hover:bg-amber-glow disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-line
+      bg-ink-raised px-4 py-2.5 font-body font-medium text-paper transition-colors duration-150
+      hover:border-amber/50 hover:text-amber disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-crimson/40
+      bg-transparent px-3 py-2 font-body text-sm text-crimson transition-colors duration-150
+      hover:bg-crimson/10 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input-field {
+    @apply w-full rounded-md border border-slate-line bg-ink px-3.5 py-2.5 font-body text-paper
+      placeholder:text-paper-faint focus:border-amber/60;
+  }
+
+  /* Decorative sprocket holes used on the workspace sidebar, evoking a film strip. */
+  .sprocket-rail::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background-image: radial-gradient(circle, theme('colors.slate.line') 2px, transparent 2.2px);
+    background-size: 6px 22px;
+    opacity: 0.6;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: theme('colors.slate.line');
+    border-radius: 999px;
+  }
+}
