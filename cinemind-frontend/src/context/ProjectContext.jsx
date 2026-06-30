@@ -89,14 +89,18 @@ export function ProjectProvider({ children }) {
 
         console.log("BACKEND RESPONSE:", response)
 
-        // success_response() wraps everything in "data"
-        const project = response.data.project
+        const projectData = response
 
-        setProject(project)
+        console.log("PROJECT DATA:", projectData)
 
-        return project
+        setProject(projectData)
+
+        console.log("RETURNING:", projectData)
+
+        return projectData
 
     } catch (err) {
+        console.error("ERROR:", err)
         setGenerationError(err.message)
         throw err
     } finally {

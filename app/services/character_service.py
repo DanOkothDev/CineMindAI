@@ -61,3 +61,22 @@ class CharacterService:
             ],
             "error": None
         }
+    
+
+    def get_project_characters(self, project_id):
+        try:
+            characters = Character.query.filter_by(project_id=project_id).all()
+
+            return {
+                "status": "success",
+                "data": [
+                    character.to_dict()
+                    for character in characters
+                ]
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }

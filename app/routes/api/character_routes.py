@@ -46,3 +46,12 @@ def create_character():
         "ai_character": ai_result["data"],
         "stored_character": db_result["data"]
     })
+
+@api.route("/project/<int:project_id>/characters", methods=["GET"])
+def get_project_characters(project_id):
+    result = character_service.get_project_characters(project_id)
+
+    if result["status"] != "success":
+        raise BadRequestError(result["error"])
+
+    return success_response(result["data"])

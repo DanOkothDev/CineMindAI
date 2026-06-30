@@ -39,14 +39,26 @@ export default function CreateProject() {
     }
     setValidationError(null)
 
-    const created = await generateProject({
-      idea: form.idea.trim(),
-      genre: form.genre,
-      duration: Number(form.duration),
-      targetAudience: form.targetAudience,
-      artStyle: form.artStyle,
-      aiModel: form.aiModel,
-    }).catch(() => null)
+    let created
+
+    try {
+        created = await generateProject({
+            idea: form.idea.trim(),
+            genre: form.genre,
+            duration: Number(form.duration),
+            targetAudience: form.targetAudience,
+            artStyle: form.artStyle,
+            aiModel: form.aiModel,
+        })
+
+        console.log("CREATED:", created)
+    } catch (err) {
+        console.error("HANDLE SUBMIT ERROR:", err)
+    }
+
+    console.log("CREATED:", created)
+    console.log("CREATED PROJECT:", created.project)
+    console.log("PROJECT ID:", created.project.project_id)
 
     if (created?.project?.project_id) {
       navigate(`/workspace/${created.project.project_id}`)

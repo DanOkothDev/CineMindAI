@@ -19,3 +19,17 @@ class Character(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "role": self.role,
+            "relationship": self.relationship,
+            "alignment": self.alignment,
+            "personality": self.personality,
+            "appearance": self.appearance,
+            "motivation": self.motivation,
+            "project_id": self.project_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

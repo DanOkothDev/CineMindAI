@@ -1,14 +1,13 @@
 import api from './api.js'
 
-// Every function here maps 1:1 to an endpoint from the architecture doc.
-// Nothing here fabricates data — if the backend is down or returns an
-// error, the promise rejects and the calling page shows that real error.
-
-// ---- Project -------------------------------------------------------------
 
 /** POST /api/project/generate-full — kicks off a full movie package generation. */
 export const generateFullProject = (payload) =>
-  api.post('/api/project/generate-full', payload).then((res) => res.data.data)
+  api.post('/api/project/generate-full', payload).then((res) => {
+    console.log("API RESPONSE:", res)
+    console.log("API RESPONSE DATA:", res.data)
+    return res.data.data
+  })
 
 /** GET /api/project/<id> */
 export const getProject = (id) =>
@@ -26,7 +25,7 @@ export const updateProject = (id, data) =>
 export const deleteProject = (id) =>
   api.delete(`/api/project/${id}`).then((res) => res.data)
 
-// ---- Characters -----------------------------------------------------------
+
 
 /** GET /api/project/<id>/characters */
 export const getCharacters = (projectId) =>
@@ -44,7 +43,7 @@ export const updateCharacter = (id, data) =>
 export const deleteCharacter = (id) =>
   api.delete(`/api/character/${id}`).then((res) => res.data)
 
-// ---- Scenes ----------------------------------------------------------------
+
 
 /** GET /api/project/<id>/scenes */
 export const getScenes = (projectId) =>
@@ -62,7 +61,7 @@ export const updateScene = (id, data) =>
 export const deleteScene = (id) =>
   api.delete(`/api/scene/${id}`).then((res) => res.data)
 
-// ---- Dialogues --------------------------------------------------------------
+
 
 /** GET /api/project/<id>/dialogues */
 export const getDialogues = (projectId) =>
@@ -76,7 +75,7 @@ export const createDialogue = (data) =>
 export const updateDialogue = (id, data) =>
   api.put(`/api/dialogue/${id}`, data).then((res) => res.data)
 
-// ---- Visual prompts -----------------------------------------------------------
+
 
 /** GET /api/project/<id>/visual-prompts */
 export const getVisualPrompts = (projectId) =>
@@ -86,13 +85,6 @@ export const getVisualPrompts = (projectId) =>
 export const regenerateVisualPrompts = (data) =>
   api.post('/api/visual-prompts/regenerate', data).then((res) => res.data)
 
-// ---- Export -------------------------------------------------------------------
 
-/**
- * GET /api/project/<id>/export/<format>
- * format is one of: 'json' | 'pdf' | 'finaldraft' | 'video'
- * Returns the raw response so the caller can read headers (e.g.
- * Content-Disposition for a suggested filename) as well as the blob body.
- */
 export const exportProject = (id, format) =>
   api.get(`/api/project/${id}/export/${format}`, { responseType: 'blob' })

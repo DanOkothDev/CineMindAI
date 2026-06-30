@@ -1,9 +1,6 @@
 import axios from 'axios'
 
-// Talks to the Flask backend described in the architecture doc.
-// In dev, requests go to relative /api/... paths and are forwarded by the
-// Vite proxy (vite.config.js) to VITE_BACKEND_URL, which avoids CORS.
-// In production, set VITE_API_BASE_URL to your deployed backend's origin.
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   headers: {
