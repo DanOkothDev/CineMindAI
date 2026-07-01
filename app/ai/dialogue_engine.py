@@ -101,10 +101,6 @@ class DialogueEngine:
             return response
 
 
-        print("\n========== GEMINI DIALOGUE RESPONSE ==========")
-        print(response["data"])
-        print("==============================================\n")
-
 
         try:
             data = response["data"]

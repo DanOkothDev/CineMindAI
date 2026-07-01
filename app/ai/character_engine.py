@@ -89,10 +89,6 @@ class CharacterEngine:
             return response
 
 
-        print("\n========== GEMINI CHARACTER RESPONSE ==========")
-        print(response["data"])
-        print("==============================================\n")
-
 
         try:
 

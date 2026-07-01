@@ -38,11 +38,6 @@ class VisualPromptEngine:
             return ai_result
 
 
-        print("Gemini Visual Engine failed:")
-        print(ai_result["error"])
-
-        print("Falling back to local Visual Engine")
-
 
         prompts = self._local_generate(
             characters,
@@ -99,10 +94,6 @@ class VisualPromptEngine:
         if response["status"] != "success":
             return response
 
-
-        print("\n========== GEMINI VISUAL RESPONSE ==========")
-        print(response["data"])
-        print("============================================\n")
 
 
         try:

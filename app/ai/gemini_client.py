@@ -20,14 +20,12 @@ class GeminiClient:
 
         for attempt in range(max_retries):
             try:
-                print(f"Gemini request attempt {attempt + 1}")
 
                 response = self.client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt
                 )
 
-                print("Gemini responded successfully")
 
                 return {
                     "status": "success",
@@ -37,8 +35,6 @@ class GeminiClient:
 
             except Exception as e:
                 error_message = str(e)
-
-                print(f"Gemini error: {error_message}")
 
                 # Last attempt failed
                 if attempt == max_retries - 1:
@@ -51,8 +47,5 @@ class GeminiClient:
                 # Exponential backoff
                 wait_time = 2 ** attempt
 
-                print(
-                    f"Waiting {wait_time} seconds before retrying..."
-                )
 
                 time.sleep(wait_time)

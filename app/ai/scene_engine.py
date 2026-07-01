@@ -34,11 +34,6 @@ class SceneEngine:
             return ai_result
 
 
-        print("Gemini Scene Engine failed:")
-        print(ai_result["error"])
-
-        print("Falling back to local Scene Engine")
-
 
         scenes = self._local_generate(
             story,

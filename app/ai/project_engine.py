@@ -28,8 +28,6 @@ class ProjectEngine:
         Generates a complete AI movie package.
         """
 
-        print("\n========== CINEMINDAI START ==========")
-
 
         # STEP 1: STORY
         story = self.story_engine.generate_story(
@@ -87,8 +85,6 @@ class ProjectEngine:
         if visuals["status"] != "success":
             return visuals
 
-
-        print("\n========== CINEMINDAI COMPLETE ==========")
 
 
         return {
