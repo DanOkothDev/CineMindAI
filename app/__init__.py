@@ -5,10 +5,20 @@ from app.extensions import db, migrate
 from app.utils.exceptions import ApiError
 from app.utils.response import error_response
 from werkzeug.exceptions import HTTPException
+from flask_cors import CORS
 
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
+
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": [
+            "http://localhost:5173",
+            "https://cinemind-ai.netlify.app"
+        ]}},
+        supports_credentials=True
+    )
 
     app.config.from_object(Config)
 
