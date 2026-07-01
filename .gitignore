@@ -18,7 +18,6 @@ instance/
 *.sqlite
 *.sqlite3
 
-migrations/
 
 .vscode/
 .idea/
