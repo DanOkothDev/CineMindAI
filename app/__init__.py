@@ -15,50 +15,39 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    
-    from app.models import project, character, scene
+    # Register all models so Alembic/migrate can see them
+    from app.models import User, Project, Story, Character, Scene, Dialogue, VisualPrompt  # noqa: F401
 
-   
+    # Register blueprints
     from app.routes.main import main
     app.register_blueprint(main)
 
-    
     from app.routes.api import api
 
-    # Import routes so they attach to the api blueprint
-    from app.routes.api import story_routes
-    from app.routes.api import character_routes
-    from app.routes.api import script_routes
-    from app.routes.api import validation_routes
-    from app.routes.api import project_routes
-    from app.routes.api import scene_routes
-    from app.routes.api import generator_routes
+    from app.routes.api import auth_routes      # noqa: F401
+    from app.routes.api import story_routes     # noqa: F401
+    from app.routes.api import character_routes # noqa: F401
+    from app.routes.api import scene_routes     # noqa: F401
+    from app.routes.api import script_routes    # noqa: F401
+    from app.routes.api import validation_routes # noqa: F401
+    from app.routes.api import project_routes   # noqa: F401
+    from app.routes.api import generator_routes # noqa: F401
+    from app.routes.api import dialogue_routes  # noqa: F401
+    from app.routes.api import visual_prompt_routes  # noqa: F401
 
     app.register_blueprint(api)
 
     @app.errorhandler(ApiError)
     def handle_api_error(error):
-        return error_response(
-            error.message,
-            error.status_code,
-            error.data
-        )
-
+        return error_response(error.message, error.status_code, error.data)
 
     @app.errorhandler(HTTPException)
     def handle_http_error(error):
-        return error_response(
-            error.description,
-            error.code
-        )
-
+        return error_response(error.description, error.code)
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
         app.logger.exception(error)
-        return error_response(
-            "Internal server error",
-            500
-        )
+        return error_response("Internal server error", 500)
 
     return app

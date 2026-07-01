@@ -39,29 +39,22 @@ export default function CreateProject() {
     }
     setValidationError(null)
 
-    let created
-
     try {
-        created = await generateProject({
-            idea: form.idea.trim(),
-            genre: form.genre,
-            duration: Number(form.duration),
-            targetAudience: form.targetAudience,
-            artStyle: form.artStyle,
-            aiModel: form.aiModel,
-        })
+      const created = await generateProject({
+        idea: form.idea.trim(),
+        genre: form.genre,
+        duration: Number(form.duration),
+        targetAudience: form.targetAudience,
+        artStyle: form.artStyle,
+        aiModel: form.aiModel,
+      })
 
-        console.log("CREATED:", created)
+      const projectId = created?.project?.project_id || created?.project?.id
+      if (projectId) {
+        navigate(`/workspace/${projectId}`)
+      }
     } catch (err) {
-        console.error("HANDLE SUBMIT ERROR:", err)
-    }
-
-    console.log("CREATED:", created)
-    console.log("CREATED PROJECT:", created.project)
-    console.log("PROJECT ID:", created.project.project_id)
-
-    if (created?.project?.project_id) {
-      navigate(`/workspace/${created.project.project_id}`)
+      // generationError is already set in context; nothing extra needed here
     }
   }
 

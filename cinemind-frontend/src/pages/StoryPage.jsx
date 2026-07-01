@@ -9,7 +9,8 @@ export default function StoryPage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const story = project?.story || {}
+  // story can come from project.story (workspace payload shape) or project itself
+  const story = project?.story || project || {}
   const acts = useMemo(
     () => [
       { key: 'actOne', fallbackKey: 'act_one', label: 'Act One — Setup', value: story.actOne || story.act_one },

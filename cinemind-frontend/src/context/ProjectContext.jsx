@@ -5,11 +5,10 @@ import { downloadBlob, getExportFilename } from '../services/projectService.js'
 export const ProjectContext = createContext(null)
 
 /**
- * Holds every piece of state the Workspace and Dashboard pages need, and the
- * actions that mutate it. Every action talks to the real Flask backend via
- * projectApi — there is no mock or fallback data anywhere in this file. If a
- * call fails, the relevant *Error state is set and the UI is responsible for
- * showing it.
+ * Holds every piece of state the Workspace and Dashboard pages need.
+ * GET /api/project/:id now returns the full workspace payload (project + story +
+ * characters + scenes + dialogues + visual_prompts), so loadWorkspace only
+ * needs one request instead of five.
  */
 export function ProjectProvider({ children }) {
   // Dashboard: list of all projects
@@ -47,7 +46,7 @@ export function ProjectProvider({ children }) {
   const [visualPromptsError, setVisualPromptsError] = useState(null)
 
   // Export
-  const [exporting, setExporting] = useState(null) // holds the format currently exporting, or null
+  const [exporting, setExporting] = useState(null)
   const [exportError, setExportError] = useState(null)
 
   // ---- Projects ----------------------------------------------------------
@@ -65,13 +64,26 @@ export function ProjectProvider({ children }) {
     }
   }, [])
 
+  /**
+   * Fetches the full workspace payload and seeds all module slices.
+   * The server returns: { project, story, characters, scenes, dialogues, visual_prompts }
+   */
   const fetchProject = useCallback(async (id) => {
     setProjectLoading(true)
     setProjectError(null)
     try {
-      const data = await projectApi.getProject(id)
-      setProject(data)
-      return data
+      const payload = await projectApi.getProject(id)
+
+      // payload may be a full workspace object or just the project record
+      const projectData = payload?.project || payload
+      setProject(projectData)
+
+      if (payload?.characters) setCharacters(payload.characters)
+      if (payload?.scenes) setScenes(payload.scenes)
+      if (payload?.dialogues) setDialogues(payload.dialogues)
+      if (payload?.visual_prompts) setVisualPrompts(payload.visual_prompts)
+
+      return payload
     } catch (err) {
       setProjectError(err.message)
       throw err
@@ -83,30 +95,23 @@ export function ProjectProvider({ children }) {
   const generateProject = useCallback(async (payload) => {
     setGenerating(true)
     setGenerationError(null)
-
     try {
-        const response = await projectApi.generateFullProject(payload)
-
-        console.log("BACKEND RESPONSE:", response)
-
-        const projectData = response
-
-        console.log("PROJECT DATA:", projectData)
-
-        setProject(projectData)
-
-        console.log("RETURNING:", projectData)
-
-        return projectData
-
+      const response = await projectApi.generateFullProject(payload)
+      // response: { project, story, characters, saved_characters, scenes, dialogues, visual_prompts }
+      const projectData = response?.project || response
+      setProject(projectData)
+      if (response?.saved_characters?.length) setCharacters(response.saved_characters)
+      if (response?.scenes?.length) setScenes(response.scenes)
+      if (response?.dialogues?.length) setDialogues(response.dialogues)
+      if (response?.visual_prompts?.length) setVisualPrompts(response.visual_prompts)
+      return response
     } catch (err) {
-        console.error("ERROR:", err)
-        setGenerationError(err.message)
-        throw err
+      setGenerationError(err.message)
+      throw err
     } finally {
-        setGenerating(false)
+      setGenerating(false)
     }
-}, [])
+  }, [])
 
   const updateProjectInfo = useCallback(async (id, data) => {
     const updated = await projectApi.updateProject(id, data)
@@ -136,21 +141,24 @@ export function ProjectProvider({ children }) {
   }, [])
 
   const addCharacter = useCallback(async (data) => {
-    const created = await projectApi.createCharacter(data)
+    const { projectId, ...rest } = data
+    const created = await projectApi.createCharacter({ project_id: projectId, ...rest })
     setCharacters((prev) => [...prev, created])
     return created
   }, [])
 
   const editCharacter = useCallback(async (id, data) => {
-    const updated = await projectApi.updateCharacter(id, data)
+    const projectId = project?.id
+    const updated = await projectApi.updateCharacter(id, { project_id: projectId, ...data })
     setCharacters((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)))
     return updated
-  }, [])
+  }, [project])
 
   const removeCharacter = useCallback(async (id) => {
-    await projectApi.deleteCharacter(id)
+    const projectId = project?.id
+    await projectApi.deleteCharacter(id, projectId)
     setCharacters((prev) => prev.filter((c) => c.id !== id))
-  }, [])
+  }, [project])
 
   // ---- Scenes ----------------------------------------------------------------
 
@@ -168,21 +176,29 @@ export function ProjectProvider({ children }) {
   }, [])
 
   const addScene = useCallback(async (data) => {
-    const created = await projectApi.createScene(data)
+    const { projectId, ...rest } = data
+    // Map heading→title, content→description for backend
+    const payload = { ...rest }
+    if (rest.heading && !rest.title) payload.title = rest.heading
+    if (rest.content && !rest.description) payload.description = rest.content
+    if (!payload.description) payload.description = payload.title || 'No description'
+    const created = await projectApi.createScene(projectId, payload)
     setScenes((prev) => [...prev, created])
     return created
   }, [])
 
   const editScene = useCallback(async (id, data) => {
-    const updated = await projectApi.updateScene(id, data)
+    const projectId = project?.id
+    const updated = await projectApi.updateScene(id, { project_id: projectId, ...data })
     setScenes((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)))
     return updated
-  }, [])
+  }, [project])
 
   const removeScene = useCallback(async (id) => {
-    await projectApi.deleteScene(id)
+    const projectId = project?.id
+    await projectApi.deleteScene(id, projectId)
     setScenes((prev) => prev.filter((s) => s.id !== id))
-  }, [])
+  }, [project])
 
   // ---- Dialogues ---------------------------------------------------------------
 
@@ -200,16 +216,18 @@ export function ProjectProvider({ children }) {
   }, [])
 
   const addDialogue = useCallback(async (data) => {
-    const created = await projectApi.createDialogue(data)
+    const { projectId, ...rest } = data
+    const created = await projectApi.createDialogue(projectId, rest)
     setDialogues((prev) => [...prev, created])
     return created
   }, [])
 
   const editDialogue = useCallback(async (id, data) => {
-    const updated = await projectApi.updateDialogue(id, data)
+    const projectId = project?.id
+    const updated = await projectApi.updateDialogue(id, { project_id: projectId, ...data })
     setDialogues((prev) => prev.map((d) => (d.id === id ? { ...d, ...updated } : d)))
     return updated
-  }, [])
+  }, [project])
 
   // ---- Visual prompts -------------------------------------------------------------
 
@@ -262,19 +280,15 @@ export function ProjectProvider({ children }) {
     [project]
   )
 
-  // ---- Loads everything a freshly opened Workspace needs ----------------------------
-
+  /**
+   * Single-request workspace load: fetches the full project payload which
+   * already includes story, characters, scenes, dialogues, and visual prompts.
+   */
   const loadWorkspace = useCallback(
     async (projectId) => {
-      await Promise.all([
-        fetchProject(projectId).catch(() => {}),
-        fetchCharacters(projectId),
-        fetchScenes(projectId),
-        fetchDialogues(projectId),
-        fetchVisualPrompts(projectId),
-      ])
+      await fetchProject(projectId)
     },
-    [fetchProject, fetchCharacters, fetchScenes, fetchDialogues, fetchVisualPrompts]
+    [fetchProject]
   )
 
   const value = useMemo(
@@ -331,47 +345,14 @@ export function ProjectProvider({ children }) {
       loadWorkspace,
     }),
     [
-      projects,
-      projectsLoading,
-      projectsError,
-      fetchProjects,
-      removeProject,
-      project,
-      projectLoading,
-      projectError,
-      fetchProject,
-      updateProjectInfo,
-      generating,
-      generationError,
-      generateProject,
-      characters,
-      charactersLoading,
-      charactersError,
-      fetchCharacters,
-      addCharacter,
-      editCharacter,
-      removeCharacter,
-      scenes,
-      scenesLoading,
-      scenesError,
-      fetchScenes,
-      addScene,
-      editScene,
-      removeScene,
-      dialogues,
-      dialoguesLoading,
-      dialoguesError,
-      fetchDialogues,
-      addDialogue,
-      editDialogue,
-      visualPrompts,
-      visualPromptsLoading,
-      visualPromptsError,
-      fetchVisualPrompts,
-      regenerateVisualPrompts,
-      exporting,
-      exportError,
-      exportProjectFile,
+      projects, projectsLoading, projectsError, fetchProjects, removeProject,
+      project, projectLoading, projectError, fetchProject, updateProjectInfo,
+      generating, generationError, generateProject,
+      characters, charactersLoading, charactersError, fetchCharacters, addCharacter, editCharacter, removeCharacter,
+      scenes, scenesLoading, scenesError, fetchScenes, addScene, editScene, removeScene,
+      dialogues, dialoguesLoading, dialoguesError, fetchDialogues, addDialogue, editDialogue,
+      visualPrompts, visualPromptsLoading, visualPromptsError, fetchVisualPrompts, regenerateVisualPrompts,
+      exporting, exportError, exportProjectFile,
       loadWorkspace,
     ]
   )

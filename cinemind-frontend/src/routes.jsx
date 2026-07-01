@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom'
 
 import DashboardLayout from './layouts/DashboardLayout.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
 import Home from './pages/Home.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import CreateProject from './pages/CreateProject.jsx'
@@ -11,21 +12,40 @@ import ScenesPage from './pages/ScenesPage.jsx'
 import DialoguePage from './pages/DialoguePage.jsx'
 import VisualPromptPage from './pages/VisualPromptPage.jsx'
 import ExportPage from './pages/ExportPage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
 
-// Central route map. Workspace owns its own sidebar nav (see Sidebar.jsx)
-// for the Story / Characters / Scenes / Dialogues / Visual Prompts / Export
-// modules described in the architecture doc.
 const routes = [
   {
     path: '/',
     element: <DashboardLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'create', element: <CreateProject /> },
+      { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
+      {
+        path: 'dashboard',
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'create',
+        element: (
+          <ProtectedRoute>
+            <CreateProject />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: 'workspace/:projectId',
-        element: <Workspace />,
+        element: (
+          <ProtectedRoute>
+            <Workspace />
+          </ProtectedRoute>
+        ),
         children: [
           { index: true, element: <Navigate to="story" replace /> },
           { path: 'story', element: <StoryPage /> },

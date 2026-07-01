@@ -22,12 +22,12 @@ def create_character():
     context = data.get("context", "")
     project_id = data.get("project_id")
 
-    if not project_id or not name or not role:
-        raise BadRequestError("project_id, name, and role are required")
+    if not project_id or not name:
+        raise BadRequestError("project_id and name are required")
 
     ai_result = character_engine.create_character(
         name=name,
-        role=role,
+        role=role or "supporting",
         idea_context=context
     )
 
@@ -42,16 +42,41 @@ def create_character():
     if db_result["status"] != "success":
         raise BadRequestError(db_result["error"])
 
-    return success_response({
-        "ai_character": ai_result["data"],
-        "stored_character": db_result["data"]
-    })
+    return success_response(db_result["data"])
+
 
 @api.route("/project/<int:project_id>/characters", methods=["GET"])
 def get_project_characters(project_id):
     result = character_service.get_project_characters(project_id)
-
     if result["status"] != "success":
         raise BadRequestError(result["error"])
-
     return success_response(result["data"])
+
+
+@api.route("/character/<int:character_id>", methods=["PUT"])
+def update_character(character_id):
+    data = request.get_json(silent=True)
+    if not data:
+        raise BadRequestError("Invalid JSON body")
+
+    project_id = data.get("project_id")
+    if not project_id:
+        raise BadRequestError("project_id is required in request body")
+
+    result = character_service.update_character(character_id, project_id, data)
+    if result["status"] != "success":
+        raise BadRequestError(result["error"])
+    return success_response(result["data"])
+
+
+@api.route("/character/<int:character_id>", methods=["DELETE"])
+def delete_character(character_id):
+    from flask import request as req
+    project_id = req.args.get("project_id", type=int)
+    if not project_id:
+        raise BadRequestError("project_id query param is required")
+
+    result = character_service.delete_character(character_id, project_id)
+    if result["status"] != "success":
+        raise BadRequestError(result["error"])
+    return success_response({"deleted": True})

@@ -1,50 +1,59 @@
-from flask import request
+from flask import request, g
 from app.routes.api import api
 from app.utils.exceptions import BadRequestError
-from app.utils.response import success_response
+from app.utils.response import success_response, error_response
+from app.utils.auth import get_current_user, require_auth
 
-from app.ai.story_engine import StoryEngine
 from app.services.project_service import ProjectService
 
 
-story_engine = StoryEngine()
 project_service = ProjectService()
 
 
-@api.route("/project/create", methods=["POST"])
-def create_project():
-    data = request.get_json(silent=True)
-    if not data:
-        raise BadRequestError("Invalid JSON body")
+@api.route("/projects", methods=["GET"])
+def list_projects():
+    user = get_current_user()
+    if user:
+        result = project_service.get_user_projects(user.id)
+    else:
+        result = project_service.get_all_projects()
 
-    idea = data.get("idea")
-    genre = data.get("genre", "drama")
-    duration = data.get("duration", 10)
-
-    story_result = story_engine.generate_story(
-        idea=idea,
-        genre=genre,
-        duration=duration
-    )
-
-    if story_result["status"] != "success":
-        raise BadRequestError(story_result["error"])
-
-    project_result = project_service.create_project(
-        idea=idea,
-        genre=genre,
-        story_result=story_result
-    )
-
-    if project_result["status"] != "success":
-        raise BadRequestError(project_result["error"])
-
-    return success_response(project_result["data"])
+    return success_response(result["data"])
 
 
 @api.route("/project/<int:project_id>", methods=["GET"])
 def get_project(project_id):
-    result = project_service.get_project(project_id)
+    result = project_service.get_full_project(project_id)
     if result["status"] != "success":
         raise BadRequestError(result["error"])
     return success_response(result["data"])
+
+
+@api.route("/project/<int:project_id>", methods=["PUT"])
+def update_project(project_id):
+    data = request.get_json(silent=True)
+    if not data:
+        raise BadRequestError("Invalid JSON body")
+
+    user = get_current_user()
+    user_id = user.id if user else None
+
+    result = project_service.update_project(project_id, data, user_id=user_id)
+    if result["status"] != "success":
+        status_code = result.get("status_code", 400)
+        return error_response(result["error"], status_code)
+
+    return success_response(result["data"])
+
+
+@api.route("/project/<int:project_id>", methods=["DELETE"])
+def delete_project(project_id):
+    user = get_current_user()
+    user_id = user.id if user else None
+
+    result = project_service.delete_project(project_id, user_id=user_id)
+    if result["status"] != "success":
+        status_code = result.get("status_code", 400)
+        return error_response(result["error"], status_code)
+
+    return success_response({"deleted": True})
