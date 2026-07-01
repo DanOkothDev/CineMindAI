@@ -32,8 +32,9 @@ def create_app():
     from app.routes.api import validation_routes # noqa: F401
     from app.routes.api import project_routes   # noqa: F401
     from app.routes.api import generator_routes # noqa: F401
-    from app.routes.api import dialogue_routes  # noqa: F401
+    from app.routes.api import dialogue_routes       # noqa: F401
     from app.routes.api import visual_prompt_routes  # noqa: F401
+    from app.routes.api import export_routes         # noqa: F401
 
     app.register_blueprint(api)
 
