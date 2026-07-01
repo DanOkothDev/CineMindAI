@@ -9,17 +9,34 @@ export default function StoryPage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // story can come from project.story (workspace payload shape) or project itself
-  const story = project?.story || project || {}
+  // story comes from the workspace payload as project.story.
+  // The backend stores acts under story.structure.act_1/2/3;
+  // fall back to legacy camelCase / snake_case fields for backward compatibility.
+  const story = project?.story || {}
+  const structure = story.structure || {}
+
   const acts = useMemo(
     () => [
-      { key: 'actOne', fallbackKey: 'act_one', label: 'Act One — Setup', value: story.actOne || story.act_one },
-      { key: 'actTwo', fallbackKey: 'act_two', label: 'Act Two — Confrontation', value: story.actTwo || story.act_two },
-      { key: 'actThree', fallbackKey: 'act_three', label: 'Act Three — Resolution', value: story.actThree || story.act_three },
+      {
+        key: 'actOne',
+        label: 'Act One — Setup',
+        value: structure.act_1 || story.actOne || story.act_one || '',
+      },
+      {
+        key: 'actTwo',
+        label: 'Act Two — Confrontation',
+        value: structure.act_2 || story.actTwo || story.act_two || '',
+      },
+      {
+        key: 'actThree',
+        label: 'Act Three — Resolution',
+        value: structure.act_3 || story.actThree || story.act_three || '',
+      },
     ],
-    [story]
+    [structure, story]
   )
-  const themes = story.themes || []
+
+  const themes = Array.isArray(story.themes) ? story.themes : []
 
   const [form, setForm] = useState(() => toFormState(acts, themes))
 

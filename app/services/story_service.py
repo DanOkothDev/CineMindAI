@@ -9,11 +9,20 @@ class StoryService:
         if not project_id or not story_data:
             return {"status": "error", "error": "Invalid story payload"}
 
-        # Extract three-act structure
+        # Extract three-act structure — AI returns act_1/2/3; also accept legacy key shapes
         structure = story_data.get("structure", {})
-        act_one = structure.get("act_one") or structure.get("act1") or structure.get("setup")
-        act_two = structure.get("act_two") or structure.get("act2") or structure.get("confrontation")
-        act_three = structure.get("act_three") or structure.get("act3") or structure.get("resolution")
+        act_one = (
+            structure.get("act_1") or structure.get("act_one")
+            or structure.get("act1") or structure.get("setup")
+        )
+        act_two = (
+            structure.get("act_2") or structure.get("act_two")
+            or structure.get("act2") or structure.get("confrontation")
+        )
+        act_three = (
+            structure.get("act_3") or structure.get("act_three")
+            or structure.get("act3") or structure.get("resolution")
+        )
 
         themes = story_data.get("themes", [])
 

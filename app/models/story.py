@@ -26,6 +26,14 @@ class Story(db.Model):
                 themes = json.loads(self.themes)
             except Exception:
                 themes = [self.themes]
+
+        structure = {}
+        if self.structure:
+            try:
+                structure = json.loads(self.structure)
+            except Exception:
+                pass
+
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -34,6 +42,7 @@ class Story(db.Model):
             "act_one": self.act_one,
             "act_two": self.act_two,
             "act_three": self.act_three,
+            "structure": structure,
             "themes": themes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

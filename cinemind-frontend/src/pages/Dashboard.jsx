@@ -38,6 +38,10 @@ export default function Dashboard() {
           <p className="slug-line">Your projects</p>
           <h1 className="mt-1 font-display text-2xl text-paper">Dashboard</h1>
         </div>
+        <Link to="/create" className="btn-primary">
+          <Plus className="h-4 w-4" />
+          New Project
+        </Link>
       </div>
 
       {/* Search + Sort bar */}

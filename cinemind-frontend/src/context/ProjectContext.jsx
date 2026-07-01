@@ -74,8 +74,12 @@ export function ProjectProvider({ children }) {
     try {
       const payload = await projectApi.getProject(id)
 
-      // payload may be a full workspace object or just the project record
+      // The workspace payload shape is:
+      // { project: {...}, story: {...}, characters: [...], scenes: [...], dialogues: [...], visual_prompts: [...] }
+      // Attach story directly onto the project object so every page can read project.story.
       const projectData = payload?.project || payload
+      if (payload?.story) projectData.story = payload.story
+
       setProject(projectData)
 
       if (payload?.characters) setCharacters(payload.characters)
@@ -99,6 +103,7 @@ export function ProjectProvider({ children }) {
       const response = await projectApi.generateFullProject(payload)
       // response: { project, story, characters, saved_characters, scenes, dialogues, visual_prompts }
       const projectData = response?.project || response
+      if (response?.story) projectData.story = response.story
       setProject(projectData)
       if (response?.saved_characters?.length) setCharacters(response.saved_characters)
       if (response?.scenes?.length) setScenes(response.scenes)
