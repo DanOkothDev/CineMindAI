@@ -31,14 +31,7 @@ class DialogueEngine:
 
 
         if ai_result["status"] == "success":
-            print("Gemini Dialogue Engine Active")
             return ai_result
-
-
-        print("Gemini Dialogue Engine failed:")
-        print(ai_result["error"])
-
-        print("Falling back to local Dialogue Engine")
 
 
         dialogues = []

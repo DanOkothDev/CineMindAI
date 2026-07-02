@@ -31,12 +31,6 @@ class CharacterEngine:
             return ai_result
 
 
-        print("Gemini Character Engine failed:")
-        print(ai_result["error"])
-
-        print("Falling back to local Character Engine")
-
-
         data = self._local_generate(story)
 
         return {

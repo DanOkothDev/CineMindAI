@@ -38,10 +38,6 @@ class StoryEngine:
             print("emini Story Engine Active")
             return ai_result
 
-        print("Gemini failed:")
-        print(ai_result["error"])
-
-        print("Falling back to local story engine")
 
         story = self._local_generate(
             idea,
@@ -102,9 +98,6 @@ class StoryEngine:
 
         if response["status"] != "success":
             return response
-
-        
-        print(response["data"])
       
 
         try:

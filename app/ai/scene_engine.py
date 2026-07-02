@@ -88,11 +88,6 @@ class SceneEngine:
             return response
 
 
-        print("\n========== GEMINI SCENE RESPONSE ==========")
-        print(response["data"])
-        print("===========================================\n")
-
-
         try:
 
             clean_data = self._clean_json(
