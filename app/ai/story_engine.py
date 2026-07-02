@@ -35,10 +35,8 @@ class StoryEngine:
 
 
         if ai_result["status"] == "success":
-            print("emini Story Engine Active")
             return ai_result
-
-
+        
         story = self._local_generate(
             idea,
             genre,

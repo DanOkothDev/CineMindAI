@@ -30,7 +30,6 @@ class SceneEngine:
 
 
         if ai_result["status"] == "success":
-            print("Gemini Scene Engine Active")
             return ai_result
 
 

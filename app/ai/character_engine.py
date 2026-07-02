@@ -27,7 +27,6 @@ class CharacterEngine:
         ai_result = self._generate_with_ai(story)
 
         if ai_result["status"] == "success":
-            print("Gemini Character Engine Active")
             return ai_result
 
 
