@@ -32,12 +32,8 @@ class VisualPromptEngine:
             scenes
         )
 
-
         if ai_result["status"] == "success":
-            print("Gemini Visual Engine Active")
             return ai_result
-
-
 
         prompts = self._local_generate(
             characters,
