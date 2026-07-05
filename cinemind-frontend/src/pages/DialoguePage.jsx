@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Plus, Loader2 } from 'lucide-react'
 import useProject from '../hooks/useProject.js'
@@ -15,11 +15,12 @@ export default function DialoguePage() {
   const [newLine, setNewLine] = useState({ sceneId: '', character: '', line: '' })
 
   const grouped = useMemo(() => groupDialoguesByScene(dialogues), [dialogues])
+  const sceneLookup = useMemo(() => new Map(scenes.map((scene) => [String(scene.id), scene])), [scenes])
 
-  const sceneLabel = (sceneId) => {
-    const scene = scenes.find((s) => String(s.id) === String(sceneId))
+  const sceneLabel = useCallback((sceneId) => {
+    const scene = sceneLookup.get(String(sceneId))
     return scene ? scene.heading || scene.title || `Scene ${scene.number ?? ''}` : 'Unassigned scene'
-  }
+  }, [sceneLookup])
 
   async function handleCreate(e) {
     e.preventDefault()

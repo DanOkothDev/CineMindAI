@@ -68,11 +68,19 @@ export function ProjectProvider({ children }) {
    * Fetches the full workspace payload and seeds all module slices.
    * The server returns: { project, story, characters, scenes, dialogues, visual_prompts }
    */
-  const fetchProject = useCallback(async (id) => {
+  const fetchProject = useCallback(async (id, options = {}) => {
     setProjectLoading(true)
     setProjectError(null)
     try {
-      const payload = await projectApi.getProject(id)
+      const include = Array.isArray(options.include)
+        ? options.include.join(',')
+        : options.include || 'project,story'
+
+      const payload = await projectApi.getProject(id, {
+        include,
+        page: options.page,
+        per_page: options.per_page,
+      })
 
       // The workspace payload shape is:
       // { project: {...}, story: {...}, characters: [...], scenes: [...], dialogues: [...], visual_prompts: [...] }
@@ -86,6 +94,15 @@ export function ProjectProvider({ children }) {
       if (payload?.scenes) setScenes(payload.scenes)
       if (payload?.dialogues) setDialogues(payload.dialogues)
       if (payload?.visual_prompts) setVisualPrompts(payload.visual_prompts)
+
+      if (include === 'project,story') {
+        void Promise.allSettled([
+          projectApi.getCharacters(id).then((data) => setCharacters(Array.isArray(data) ? data : data?.characters || [])),
+          projectApi.getScenes(id).then((data) => setScenes(Array.isArray(data) ? data : data?.scenes || [])),
+          projectApi.getDialogues(id).then((data) => setDialogues(Array.isArray(data) ? data : data?.dialogues || [])),
+          projectApi.getVisualPrompts(id).then((data) => setVisualPrompts(Array.isArray(data) ? data : data?.visualPrompts || data?.prompts || [])),
+        ])
+      }
 
       return payload
     } catch (err) {
@@ -101,7 +118,10 @@ export function ProjectProvider({ children }) {
     setGenerationError(null)
     try {
       const response = await projectApi.generateFullProject(payload)
-      // response: { project, story, characters, saved_characters, scenes, dialogues, visual_prompts }
+      if (response?.job_id) {
+        return response
+      }
+
       const projectData = response?.project || response
       if (response?.story) projectData.story = response.story
       setProject(projectData)

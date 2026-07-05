@@ -21,9 +21,19 @@ def list_projects():
     return success_response(result["data"])
 
 
+@api.route("/health", methods=["GET"])
+def health_check():
+    return success_response({"status": "ok"})
+
+
 @api.route("/project/<int:project_id>", methods=["GET"])
 def get_project(project_id):
-    result = project_service.get_full_project(project_id)
+    page = request.args.get("page", default=1, type=int)
+    per_page = request.args.get("per_page", default=50, type=int)
+    include_param = request.args.get("include", default="", type=str)
+    include = [item.strip() for item in include_param.split(",") if item.strip()] if include_param else None
+
+    result = project_service.get_full_project(project_id, include=include, page=page, per_page=per_page)
     if result["status"] != "success":
         raise BadRequestError(result["error"])
     return success_response(result["data"])

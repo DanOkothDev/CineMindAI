@@ -23,7 +23,12 @@ class GeminiClient:
 
                 response = self.client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=prompt
+                    contents=prompt,
+                    config={
+                        "temperature": 0.9,
+                        "topP": 0.95,
+                        "maxOutputTokens": 8192,
+                    },
                 )
 
 

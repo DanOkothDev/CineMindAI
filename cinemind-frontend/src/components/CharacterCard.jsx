@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Pencil, Trash2, Check, X, Loader2 } from 'lucide-react'
 
-export default function CharacterCard({ character, onSave, onDelete }) {
+function CharacterCard({ character, onSave, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(() => toFormState(character))
@@ -149,6 +149,8 @@ function IconButton({ children, onClick, label, danger }) {
     </button>
   )
 }
+
+export default memo(CharacterCard)
 
 function toFormState(character) {
   return {

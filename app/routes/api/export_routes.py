@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import textwrap
 from datetime import datetime
 
@@ -54,7 +55,10 @@ def export_pdf(project_id):
         blob,
         status=200,
         mimetype="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{title_slug}.pdf"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{title_slug}.pdf"',
+            "Cache-Control": "no-store",
+        },
     )
 
 
@@ -115,65 +119,45 @@ def _build_pdf_plaintext(data: dict) -> bytes:
     with no external dependencies beyond the standard library.
     """
     lines = _script_lines(data)
-    text_body = "\n".join(lines)
-
-    # Encode text into PDF literal strings (basic ASCII safety)
-    safe_body = text_body.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    # Split into pages of ~55 lines each
-    all_lines = safe_body.split("\n")
-    page_size = 55
-    pages_text = []
-    for i in range(0, max(1, len(all_lines)), page_size):
-        chunk = "\\n".join(all_lines[i : i + page_size])
-        pages_text.append(chunk)
+    safe_lines = []
+    for raw_line in lines:
+        cleaned = _clean_markdown_text(raw_line)
+        if not cleaned:
+            safe_lines.append("")
+            continue
+        wrapped = textwrap.wrap(
+            cleaned,
+            width=92,
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [""]
+        safe_lines.extend(wrapped)
 
     buf = io.BytesIO()
-
-    # Build minimal PDF manually
     objects = []
 
     def add_obj(content: str) -> int:
         objects.append(content)
         return len(objects)
 
-    # Object 1: catalog (filled in after we know page tree id)
-    add_obj("")  # placeholder
-
-    # Object 2: page tree (filled after pages are added)
-    add_obj("")  # placeholder
+    add_obj("")
+    add_obj("")
 
     page_ids = []
-    for page_text in pages_text:
-        stream = (
-            f"BT\n"
-            f"/F1 9 Tf\n"
-            f"40 780 Td\n"
-            f"14 TL\n"
-            f"({page_text}) Tj\n"
-            f"ET"
-        )
-        stream_bytes = stream.encode("latin-1", errors="replace")
-        # Content stream object
-        content_id = add_obj(
-            f"<< /Length {len(stream_bytes)} >>\nstream\n"
-            + stream_bytes.decode("latin-1")
-            + "\nendstream"
-        )
-        # Page object
-        page_id = add_obj(
-            f"<< /Type /Page /Parent 2 0 R "
-            f"/MediaBox [0 0 612 792] "
-            f"/Contents {content_id} 0 R "
-            f"/Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> "
-            f">>"
-        )
-        page_ids.append(page_id)
+    page_lines = []
+    max_lines_per_page = 48
+    for line in safe_lines:
+        page_lines.append(line)
+        if len(page_lines) >= max_lines_per_page:
+            page_ids.append(_build_pdf_page_object(objects, add_obj, page_lines))
+            page_lines = []
+    if page_lines or not page_ids:
+        page_ids.append(_build_pdf_page_object(objects, add_obj, page_lines or [""]))
 
     kids = " ".join(f"{pid} 0 R" for pid in page_ids)
     objects[1] = f"<< /Type /Pages /Kids [{kids}] /Count {len(page_ids)} >>"
     objects[0] = f"<< /Type /Catalog /Pages 2 0 R >>"
 
-    # Write PDF bytes
     header = b"%PDF-1.4\n"
     buf.write(header)
     offsets = []
@@ -193,6 +177,54 @@ def _build_pdf_plaintext(data: dict) -> bytes:
         f"startxref\n{xref_offset}\n%%EOF\n".encode()
     )
     return buf.getvalue()
+
+
+def _build_pdf_page_object(objects: list[str], add_obj, lines: list[str]) -> int:
+    content_lines = [
+        "BT",
+        "/F1 9 Tf",
+        "72 740 Td",
+        "11 TL",
+    ]
+    for line in lines:
+        escaped_line = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        content_lines.append(f"({escaped_line}) Tj")
+        content_lines.append("T*")
+    content_lines.append("ET")
+    stream = "\n".join(content_lines)
+    stream_bytes = stream.encode("latin-1", errors="replace")
+    content_id = add_obj(
+        f"<< /Length {len(stream_bytes)} >>\nstream\n"
+        + stream_bytes.decode("latin-1")
+        + "\nendstream"
+    )
+    return add_obj(
+        f"<< /Type /Page /Parent 2 0 R "
+        f"/MediaBox [0 0 612 792] "
+        f"/Contents {content_id} 0 R "
+        f"/Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> "
+        f">>"
+    )
+
+
+def _clean_markdown_text(text: str) -> str:
+    if not text:
+        return ""
+    value = str(text)
+    value = re.sub(r"```.*?```", "", value, flags=re.S)
+    value = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", value)
+    value = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", value)
+    value = re.sub(r"(?<!\*)\*\*(.+?)\*\*(?!\*)", r"\1", value)
+    value = re.sub(r"(?<!\*)\*(.+?)\*(?!\*)", r"\1", value)
+    value = re.sub(r"(?<!_)__(.+?)__(?!_)", r"\1", value)
+    value = re.sub(r"(?<!_)_(.+?)_(?!_)", r"\1", value)
+    value = re.sub(r"`([^`]+)`", r"\1", value)
+    value = re.sub(r"^\s{0,3}#{1,6}\s*", "", value)
+    value = re.sub(r"^\s*[-*+]\s+", "", value)
+    value = re.sub(r"^\s*\d+\.\s+", "", value)
+    value = value.replace("\t", " ")
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
 
 
 def _build_pdf_fpdf(data: dict) -> bytes:

@@ -1,4 +1,6 @@
-from flask import request
+import json
+
+from flask import current_app, request
 from app.routes.api import api
 from app.utils.exceptions import BadRequestError
 from app.utils.response import success_response
@@ -17,6 +19,10 @@ from app.services.scene_service import SceneService
 from app.services.dialogue_service import DialogueService
 from app.services.visual_prompt_service import VisualPromptService
 from app.services.story_service import StoryService
+from app.services.generation_service import GenerationService
+from app.services.ai_orchestrator import AIOrchestrator
+from app.services.cache_service import CacheService
+from app.services.observability import log_timing
 
 
 story_engine = StoryEngine()
@@ -32,26 +38,29 @@ dialogue_service = DialogueService()
 visual_prompt_service = VisualPromptService()
 story_service = StoryService()
 story_memory = StoryMemory()
+generation_service = GenerationService()
+cache_service = CacheService()
+ai_orchestrator = AIOrchestrator(cache_service=cache_service)
 
 
-@api.route("/project/generate-full", methods=["POST"])
-def generate_full_project():
-    data = request.get_json(silent=True)
-    if not data:
-        raise BadRequestError("Invalid JSON body")
-
-    idea = data.get("idea")
-    genre = data.get("genre", "drama")
-    duration = data.get("duration", 10)
-    project_id = data.get("project_id")
-
-    user = get_current_user()
-    user_id = user.id if user else None
+@log_timing("generation_pipeline")
+def run_generation_pipeline(payload, user_id=None):
+    idea = payload.get("idea")
+    genre = payload.get("genre", "drama")
+    duration = payload.get("duration", 10)
+    project_id = payload.get("project_id")
 
     # 1. STORY
-    story_result = story_engine.generate_story(idea=idea, genre=genre, duration=duration)
+    story_result = ai_orchestrator.run(
+        "story",
+        lambda *args, **kwargs: f"{kwargs.get('idea', '')}:{kwargs.get('genre', '')}:{kwargs.get('duration', 0)}",
+        story_engine.generate_story,
+        idea=idea,
+        genre=genre,
+        duration=duration,
+    )
     if story_result["status"] != "success":
-        raise BadRequestError(story_result["error"])
+        raise RuntimeError(story_result["error"])
 
     story_data = story_result["data"]
 
@@ -61,12 +70,12 @@ def generate_full_project():
             idea=idea, genre=genre, story_result=story_result, user_id=user_id
         )
         if project_result["status"] != "success":
-            raise BadRequestError(project_result["error"])
+            raise RuntimeError(project_result["error"])
         project_id = project_result["data"]["project_id"]
     else:
         project_result = project_service.get_project(project_id)
         if project_result["status"] != "success":
-            raise BadRequestError(project_result["error"])
+            raise RuntimeError(project_result["error"])
 
     # 3. STORY RECORD
     story_service.create_story(project_id, story_data)
@@ -75,9 +84,14 @@ def generate_full_project():
     story_memory.init_story(project_id, story_data)
 
     # 5. CHARACTERS
-    character_result = character_engine.generate_characters(story=story_data)
+    character_result = ai_orchestrator.run(
+        "characters",
+        lambda *args, **kwargs: json.dumps(kwargs.get("story", {}), sort_keys=True),
+        character_engine.generate_characters,
+        story=story_data,
+    )
     if character_result["status"] != "success":
-        raise BadRequestError(character_result["error"])
+        raise RuntimeError(character_result["error"])
 
     characters = character_result["data"]["characters"]
     relationships = character_result["data"]["relationships"]
@@ -86,15 +100,18 @@ def generate_full_project():
     for char in characters:
         saved = character_service.create_character(project_id=project_id, data=char)
         if saved["status"] != "success":
-            raise BadRequestError(saved["error"])
+            raise RuntimeError(saved["error"])
         saved_characters.append(saved["data"])
 
     # 6. SCENES
-    scene_result = emotion_scene_engine.generate_scenes(
+    scene_result = ai_orchestrator.run(
+        "scenes",
+        lambda *args, **kwargs: json.dumps({"story": kwargs.get("story", {}), "characters": kwargs.get("characters", []), "relationships": kwargs.get("relationships", [])}, sort_keys=True),
+        emotion_scene_engine.generate_scenes,
         story=story_data, characters=characters, relationships=relationships
     )
     if scene_result["status"] != "success":
-        raise BadRequestError(scene_result["error"])
+        raise RuntimeError(scene_result["error"])
 
     scenes = scene_result["data"]
     saved_scenes = []
@@ -102,16 +119,19 @@ def generate_full_project():
         scene["number"] = i + 1
         saved = scene_service.create_scene(project_id=project_id, data=scene)
         if saved["status"] != "success":
-            raise BadRequestError(saved["error"])
+            raise RuntimeError(saved["error"])
         saved_scenes.append(saved["data"])
         story_memory.update_scene(project_id, scene)
 
     # 7. DIALOGUES
-    dialogue_result = dialogue_engine.generate_dialogues(
+    dialogue_result = ai_orchestrator.run(
+        "dialogues",
+        lambda *args, **kwargs: json.dumps({"story": kwargs.get("story", {}), "characters": kwargs.get("characters", []), "scenes": kwargs.get("scenes", [])}, sort_keys=True),
+        dialogue_engine.generate_dialogues,
         story=story_data, characters=characters, scenes=scenes
     )
     if dialogue_result["status"] != "success":
-        raise BadRequestError(dialogue_result["error"])
+        raise RuntimeError(dialogue_result["error"])
 
     dialogue_data = dialogue_result["data"]
     saved_dialogues = []
@@ -135,7 +155,10 @@ def generate_full_project():
                     saved_dialogues.append(d["data"])
 
     # 8. VISUAL PROMPTS
-    vp_result = visual_prompt_engine.generate_visual_prompts(
+    vp_result = ai_orchestrator.run(
+        "visual_prompts",
+        lambda *args, **kwargs: json.dumps({"story": kwargs.get("story", {}), "characters": kwargs.get("characters", []), "scenes": kwargs.get("scenes", [])}, sort_keys=True),
+        visual_prompt_engine.generate_visual_prompts,
         story=story_data, characters=characters, scenes=scenes
     )
     saved_visual_prompts = []
@@ -152,7 +175,7 @@ def generate_full_project():
                 project_id, char["name"], char["emotion"].get("current_emotion", "neutral")
             )
 
-    result = {
+    return {
         "project": project_result["data"],
         "story": story_data,
         "characters": characters,
@@ -163,4 +186,42 @@ def generate_full_project():
         "relationships": relationships,
     }
 
-    return success_response(result)
+
+@api.route("/project/generate-full", methods=["POST"])
+def generate_full_project():
+    data = request.get_json(silent=True)
+    if not data:
+        raise BadRequestError("Invalid JSON body")
+
+    user = get_current_user()
+    user_id = user.id if user else None
+
+    payload = {
+        "idea": data.get("idea"),
+        "genre": data.get("genre", "drama"),
+        "duration": data.get("duration", 10),
+        "project_id": data.get("project_id"),
+        "user_id": user_id,
+    }
+
+    job = generation_service.create_job(payload)
+    generation_service.start_generation(
+        job["job_id"],
+        payload,
+        generation_runner=run_generation_pipeline,
+        app=current_app._get_current_object(),
+    )
+
+    return success_response({
+        "job_id": job["job_id"],
+        "status": "queued",
+        "message": "Generation started in the background.",
+    })
+
+
+@api.route("/project/generation/<job_id>/status", methods=["GET"])
+def generation_status(job_id):
+    job = generation_service.get_job(job_id)
+    if not job:
+        raise BadRequestError("Generation job not found")
+    return success_response(job)

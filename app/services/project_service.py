@@ -3,6 +3,24 @@ from app.models.project import Project
 
 
 class ProjectService:
+    @staticmethod
+    def _paginate_items(items, page=1, per_page=50):
+        items = list(items or [])
+        page = max(1, int(page or 1))
+        per_page = max(1, int(per_page or 50))
+        total = len(items)
+        pages = max(1, (total + per_page - 1) // per_page) if total else 1
+        start = (page - 1) * per_page
+        end = start + per_page
+
+        return {
+            "items": items[start:end],
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "pages": pages,
+        }
+
     def create_project(self, idea, genre, story_result, user_id=None):
         if not idea or not story_result or story_result.get("status") != "success":
             return {"status": "error", "data": None, "error": "Invalid story data"}
@@ -89,11 +107,17 @@ class ProjectService:
 
         return {"status": "success", "data": None}
 
-    def get_full_project(self, project_id):
-        """Return project + all related entities for workspace initialization."""
+    def get_full_project(self, project_id, include=None, page=1, per_page=50):
+        """Return project + related entities for workspace initialization."""
         project = Project.query.get(project_id)
         if not project:
             return {"status": "error", "error": "Project not found"}
+
+        include_items = []
+        if isinstance(include, str):
+            include_items = [item.strip() for item in include.split(",") if item.strip()]
+        elif include:
+            include_items = [item for item in include if item]
 
         story = project.stories[0].to_dict() if project.stories else None
         characters = [c.to_dict() for c in project.characters]
@@ -101,14 +125,54 @@ class ProjectService:
         dialogues = [d.to_dict() for d in project.dialogues]
         visual_prompts = [v.to_dict() for v in project.visual_prompts]
 
+        payload = {
+            "project": project.to_dict(),
+        }
+
+        if not include_items or "story" in include_items:
+            payload["story"] = story
+
+        if not include_items or "characters" in include_items:
+            paged_characters = self._paginate_items(characters, page=page, per_page=per_page)
+            payload["characters"] = paged_characters["items"]
+            payload["characters_pagination"] = {
+                "page": paged_characters["page"],
+                "per_page": paged_characters["per_page"],
+                "total": paged_characters["total"],
+                "pages": paged_characters["pages"],
+            }
+
+        if not include_items or "scenes" in include_items:
+            paged_scenes = self._paginate_items(scenes, page=page, per_page=per_page)
+            payload["scenes"] = paged_scenes["items"]
+            payload["scenes_pagination"] = {
+                "page": paged_scenes["page"],
+                "per_page": paged_scenes["per_page"],
+                "total": paged_scenes["total"],
+                "pages": paged_scenes["pages"],
+            }
+
+        if not include_items or "dialogues" in include_items:
+            paged_dialogues = self._paginate_items(dialogues, page=page, per_page=per_page)
+            payload["dialogues"] = paged_dialogues["items"]
+            payload["dialogues_pagination"] = {
+                "page": paged_dialogues["page"],
+                "per_page": paged_dialogues["per_page"],
+                "total": paged_dialogues["total"],
+                "pages": paged_dialogues["pages"],
+            }
+
+        if not include_items or "visual_prompts" in include_items:
+            paged_visual_prompts = self._paginate_items(visual_prompts, page=page, per_page=per_page)
+            payload["visual_prompts"] = paged_visual_prompts["items"]
+            payload["visual_prompts_pagination"] = {
+                "page": paged_visual_prompts["page"],
+                "per_page": paged_visual_prompts["per_page"],
+                "total": paged_visual_prompts["total"],
+                "pages": paged_visual_prompts["pages"],
+            }
+
         return {
             "status": "success",
-            "data": {
-                "project": project.to_dict(),
-                "story": story,
-                "characters": characters,
-                "scenes": scenes,
-                "dialogues": dialogues,
-                "visual_prompts": visual_prompts,
-            },
+            "data": payload,
         }

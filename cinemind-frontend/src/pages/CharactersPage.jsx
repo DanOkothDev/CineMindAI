@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Plus, Loader2 } from 'lucide-react'
 import useProject from '../hooks/useProject.js'
@@ -13,6 +13,7 @@ export default function CharactersPage() {
   const [adding, setAdding] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newCharacter, setNewCharacter] = useState({ name: '', role: '' })
+  const visibleCharacters = useMemo(() => characters.slice(0, 20), [characters])
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -83,10 +84,13 @@ export default function CharactersPage() {
       )}
 
       {characters.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {characters.map((character) => (
-            <CharacterCard key={character.id} character={character} onSave={editCharacter} onDelete={removeCharacter} />
-          ))}
+        <div className="flex flex-col gap-2">
+          <p className="slug-line text-xs">Showing {Math.min(visibleCharacters.length, characters.length)} of {characters.length} characters</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {visibleCharacters.map((character) => (
+              <CharacterCard key={character.id} character={character} onSave={editCharacter} onDelete={removeCharacter} />
+            ))}
+          </div>
         </div>
       )}
     </div>

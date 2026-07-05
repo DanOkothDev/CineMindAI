@@ -4,9 +4,13 @@ import api from './api.js'
 export const generateFullProject = (payload) =>
   api.post('/api/project/generate-full', payload).then((res) => res.data.data)
 
-/** GET /api/project/<id> — returns full workspace payload (project + story + characters + scenes + dialogues + visual_prompts) */
-export const getProject = (id) =>
-  api.get(`/api/project/${id}`).then((res) => res.data.data)
+/** GET /api/project/generation/<job_id>/status */
+export const getGenerationStatus = (jobId) =>
+  api.get(`/api/project/generation/${jobId}/status`).then((res) => res.data.data)
+
+/** GET /api/project/<id> — returns the workspace payload with optional include/pagination controls */
+export const getProject = (id, params = {}) =>
+  api.get(`/api/project/${id}`, { params }).then((res) => res.data.data)
 
 /** GET /api/projects */
 export const getProjects = () =>

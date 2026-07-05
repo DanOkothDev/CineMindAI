@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Wand2, Loader2, ChevronDown, Clapperboard } from 'lucide-react'
 import useProject from '../hooks/useProject.js'
+import * as projectApi from '../api/projectApi.js'
+import { extractProjectIdFromGenerationStatus } from '../utils/generationStatus.js'
 
 const GENRES = ['Action', 'Drama', 'Comedy', 'Sci-Fi', 'Horror', 'Thriller', 'Romance', 'Fantasy', 'Animation', 'Documentary']
 const AUDIENCES = ['General', 'Children', 'Teens', 'Young adult', 'Adult', 'Mature']
@@ -27,8 +29,77 @@ const INITIAL_FORM = {
 export default function CreateProject() {
   const [form, setForm] = useState(INITIAL_FORM)
   const [validationError, setValidationError] = useState(null)
+  const [isPolling, setIsPolling] = useState(false)
+  const [progressStep, setProgressStep] = useState(0)
   const { generateProject, generating, generationError } = useProject()
   const navigate = useNavigate()
+  const activeJobRef = useRef(null)
+  const progressTimerRef = useRef(null)
+
+  const clearProgressTimer = useCallback(() => {
+    if (progressTimerRef.current) {
+      window.clearInterval(progressTimerRef.current)
+      progressTimerRef.current = null
+    }
+  }, [])
+
+  const startProgressTimer = useCallback(() => {
+    clearProgressTimer()
+    setProgressStep(1)
+    progressTimerRef.current = window.setInterval(() => {
+      setProgressStep((prev) => (prev >= 3 ? prev : prev + 1))
+    }, 1800)
+  }, [clearProgressTimer])
+
+  useEffect(() => () => clearProgressTimer(), [clearProgressTimer])
+
+  const pollGenerationStatus = useCallback(async (jobId) => {
+    if (activeJobRef.current && activeJobRef.current !== jobId) {
+      return
+    }
+
+    setIsPolling(true)
+    startProgressTimer()
+
+    try {
+      const status = await projectApi.getGenerationStatus(jobId)
+      if (status?.status === 'completed') {
+        const projectId = extractProjectIdFromGenerationStatus(status)
+        if (projectId) {
+          activeJobRef.current = null
+          setIsPolling(false)
+          clearProgressTimer()
+          setProgressStep(4)
+          navigate(`/workspace/${projectId}`)
+        } else {
+          activeJobRef.current = null
+          setIsPolling(false)
+          setProgressStep(0)
+          setValidationError('Generation completed but no project was returned.')
+        }
+        return
+      }
+
+      if (status?.status === 'failed') {
+        activeJobRef.current = null
+        setIsPolling(false)
+        clearProgressTimer()
+        setProgressStep(0)
+        setValidationError(status?.error || 'Generation failed.')
+        return
+      }
+
+      window.setTimeout(() => {
+        void pollGenerationStatus(jobId)
+      }, 1500)
+    } catch (err) {
+      activeJobRef.current = null
+      setIsPolling(false)
+      clearProgressTimer()
+      setProgressStep(0)
+      setValidationError(err?.message || 'Generation status could not be loaded.')
+    }
+  }, [navigate])
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -40,7 +111,13 @@ export default function CreateProject() {
       setValidationError('Give the studio a movie idea to work from first.')
       return
     }
+    if (activeJobRef.current) {
+      setValidationError('A generation is already in progress. Please wait for it to finish.')
+      return
+    }
+
     setValidationError(null)
+    startProgressTimer()
 
     try {
       const created = await generateProject({
@@ -52,11 +129,20 @@ export default function CreateProject() {
         aiModel: form.aiModel,
       })
 
+      if (created?.job_id) {
+        activeJobRef.current = created.job_id
+        setProgressStep(1)
+        void pollGenerationStatus(created.job_id)
+        return
+      }
+
       const projectId = created?.project?.project_id || created?.project?.id
       if (projectId) {
         navigate(`/workspace/${projectId}`)
       }
     } catch (err) {
+      clearProgressTimer()
+      setProgressStep(0)
       // generationError is already set in context; nothing extra needed here
     }
   }
@@ -154,6 +240,21 @@ export default function CreateProject() {
                 </p>
               )}
 
+              {(generating || isPolling) && (
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3">
+                  <div className="mb-2 flex items-center justify-between text-sm text-slate-200">
+                    <span>{progressStep === 1 ? 'Queued' : progressStep === 2 ? 'Planning story' : progressStep === 3 ? 'Building scenes and dialogue' : 'Finishing project'}</span>
+                    <span>{Math.min(100, progressStep * 25)}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, progressStep * 25)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="group mt-2 inline-flex w-full items-center justify-center gap-2 self-start rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-5 py-3 text-sm font-medium text-white
@@ -163,14 +264,14 @@ export default function CreateProject() {
                            disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0E1A]
                            sm:w-auto"
-                disabled={generating}
+                disabled={generating || isPolling}
               >
-                {generating ? (
+                {generating || isPolling ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Wand2 className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
                 )}
-                {generating ? 'Generating your movie package…' : 'Generate'}
+                {generating || isPolling ? 'Generating your movie package…' : 'Generate'}
               </button>
             </form>
           </div>

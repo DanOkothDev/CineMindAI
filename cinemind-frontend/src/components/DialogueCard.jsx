@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Pencil, Check, X, Loader2 } from 'lucide-react'
 
-export default function DialogueCard({ dialogue, onSave }) {
+function DialogueCard({ dialogue, onSave }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(() => toFormState(dialogue))
@@ -80,6 +80,8 @@ export default function DialogueCard({ dialogue, onSave }) {
     </div>
   )
 }
+
+export default memo(DialogueCard)
 
 function toFormState(dialogue) {
   return {
