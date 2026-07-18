@@ -21,9 +21,16 @@ class CharacterService:
         try:
             db.session.add(character)
             db.session.commit()
-        except Exception:
+        except Exception as e:
             db.session.rollback()
-            return {"status": "error", "data": None, "error": "Database error creating character"}
+
+            print(e)
+
+            return {
+                "status": "error",
+                "data": None,
+                "error": str(e)
+            }
 
         return {"status": "success", "data": character.to_dict()}
 
