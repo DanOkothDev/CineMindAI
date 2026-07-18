@@ -26,6 +26,7 @@ def regenerate_visual_prompts():
         raise BadRequestError("Invalid JSON body")
 
     project_id = data.get("projectId") or data.get("project_id")
+    project_id = int(project_id)
     if not project_id:
         raise BadRequestError("projectId is required")
 
