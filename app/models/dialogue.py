@@ -9,10 +9,10 @@ class Dialogue(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
     scene_id = db.Column(db.Integer, db.ForeignKey("scenes.id"), nullable=True)
 
-    scene_title = db.Column(db.String(200))
-    character = db.Column(db.String(100), nullable=False)
+    scene_title = db.Column(db.String(255))
+    character = db.Column(db.String(255), nullable=False)
     line = db.Column(db.Text, nullable=False)
-    emotion = db.Column(db.String(100))
+    emotion = db.Column(db.String(255))
     order_index = db.Column(db.Integer, default=0)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

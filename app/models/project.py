@@ -8,12 +8,12 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    title = db.Column(db.String(150), nullable=False)
-    genre = db.Column(db.String(50))
+    title = db.Column(db.String(255), nullable=False)
+    genre = db.Column(db.String(255))
     idea = db.Column(db.Text, nullable=False)
     logline = db.Column(db.Text)
     summary = db.Column(db.Text)
-    status = db.Column(db.String(50), default="draft")
+    status = db.Column(db.String(255), default="draft")
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

@@ -7,11 +7,11 @@ class Scene(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    title = db.Column(db.String(150), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
 
-    location = db.Column(db.String(150))
-    mood = db.Column(db.String(100))
+    location = db.Column(db.String(255))
+    mood = db.Column(db.String(255))
     number = db.Column(db.Integer)
 
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)

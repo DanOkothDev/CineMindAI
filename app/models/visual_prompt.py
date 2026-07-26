@@ -9,11 +9,11 @@ class VisualPrompt(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
     scene_id = db.Column(db.Integer, db.ForeignKey("scenes.id"), nullable=True)
 
-    scene_title = db.Column(db.String(200))
+    scene_title = db.Column(db.String(255))
     prompt = db.Column(db.Text, nullable=False)
-    camera = db.Column(db.String(200))
-    lighting = db.Column(db.String(200))
-    style = db.Column(db.String(200))
+    camera = db.Column(db.String(255))
+    lighting = db.Column(db.String(255))
+    style = db.Column(db.String(255))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

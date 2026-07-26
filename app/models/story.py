@@ -8,7 +8,7 @@ class Story(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
 
-    title = db.Column(db.String(200))
+    title = db.Column(db.String(255))
     logline = db.Column(db.Text)
     act_one = db.Column(db.Text)
     act_two = db.Column(db.Text)

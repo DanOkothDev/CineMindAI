@@ -7,10 +7,10 @@ class Character(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(100))
-    relationship = db.Column(db.String(100))
-    alignment = db.Column(db.String(50))  # hero, neutral, villain
+    name = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(255))
+    relationship = db.Column(db.String(255))
+    alignment = db.Column(db.String(255))  # hero, neutral, villain
 
     personality = db.Column(db.Text)
     appearance = db.Column(db.Text)
